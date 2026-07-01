@@ -1,4 +1,4 @@
-# Generador de Intro estilo SMG4
+# SMG4 Intro Recreation
 
 Web de una sola página (`index.html`) que genera una intro animada tipo SMG4:
 personajes que hacen pop-in y orbitan, logo final con anillos de choque, tu
