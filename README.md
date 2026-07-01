@@ -9,44 +9,10 @@ Todo corre en el navegador del visitante: no hay backend, no hay que subir
 nada a ningún servidor, no se guarda ni se sube ninguna imagen/audio del
 usuario a ningún sitio.
 
-## Publicarla en GitHub Pages
+# SMG4 Intro Recreation
 
-1. Crea un repositorio nuevo en GitHub (puede ser público o, si tienes
-   GitHub Pro/Team/Enterprise, también privado).
-2. Sube estos archivos a la raíz del repositorio (o a una carpeta `/docs` si
-   prefieres esa opción; ver paso 4):
-   - `index.html`
-   - `.nojekyll`
-   - `README.md` (opcional, solo informativo)
-3. Entra en **Settings → Pages** del repositorio.
-4. En "Build and deployment":
-   - Source: **Deploy from a branch**
-   - Branch: `main` (o la rama donde subiste los archivos) y carpeta `/ (root)`
-     — o `/docs` si pusiste ahí los archivos.
-5. Guarda. GitHub te dará una URL parecida a:
-   `https://TU-USUARIO.github.io/NOMBRE-DEL-REPO/`
-   Tarda entre 30 segundos y un par de minutos en activarse la primera vez.
+A single-page website (`index.html`) that generates an animated SMG4-style intro:
+characters that pop in and orbit, a final logo with crash rings, your
+custom music, and video export (native MP4 when supported by the browser, or offline WEBM for backup).
 
-### Alternativa por línea de comandos (git)
-
-```bash
-git init
-git add index.html .nojekyll README.md
-git commit -m "Intro maker estilo SMG4"
-git branch -M main
-git remote add origin https://github.com/TU-USUARIO/TU-REPO.git
-git push -u origin main
-```
-
-Luego repite el paso 3-4 de arriba en la web de GitHub.
-
-## Notas
-
-- El archivo `.nojekyll` evita que GitHub Pages procese el sitio con Jekyll
-  (no lo necesitamos y evita conflictos con el código JavaScript).
-- No hace falta ningún paso de "build": es HTML/CSS/JS puro en un solo
-  archivo, listo para servirse tal cual.
-- La conversión a MP4 (cuando el navegador no puede grabar MP4 nativo) carga
-  una librería externa (ffmpeg.wasm) desde un CDN la primera vez que se usa;
-  todo lo demás — subir imágenes, previsualizar, reproducir, grabar en WEBM —
-  funciona sin conexión una vez cargada la página.
+Everything runs in the visitor's browser: there's no backend, nothing needs to be uploaded to any server, and no user images or audio are saved or uploaded anywhere.
