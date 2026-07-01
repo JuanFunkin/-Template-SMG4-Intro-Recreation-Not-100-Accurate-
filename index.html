@@ -218,7 +218,7 @@
     }
   };
 
-  const persisted = { lang: 'en' };
+  const persisted = { lang: 'es' };
 
   function tpl(lang){
     const t = STR[lang];
@@ -1291,11 +1291,17 @@
   // Prefer a mimeType the browser can encode to MP4/H.264 NATIVELY (no internet, no wasm).
   // Only fall back to WEBM (VP9/VP8) if the browser truly can't do MP4 in MediaRecorder.
   function pickRecorderMimeType(){
+    // Only trust codec-EXPLICIT H.264+AAC strings as "safe, plays everywhere" native MP4.
+    // Deliberately NOT trusting the bare 'video/mp4' (no codecs) string: some Chrome builds
+    // (notably on Linux, without a real H.264 encoder) report it as "supported" but then
+    // silently mux VP9 video + Opus audio into an .mp4-labelled container. That file is
+    // technically valid ISO-BMFF, but Windows Media Player, WhatsApp, many phone galleries,
+    // etc. expect H.264/AAC specifically and open it with broken video and/or no sound.
     const mp4Candidates = [
       'video/mp4;codecs=avc1.640028,mp4a.40.2',
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
       'video/mp4;codecs=avc1,mp4a.40.2',
-      'video/mp4;codecs=h264,aac',
-      'video/mp4'
+      'video/mp4;codecs=h264,aac'
     ];
     for (const m of mp4Candidates){
       if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return { mimeType:m, isMp4:true };
@@ -1331,24 +1337,38 @@
 
     const { mimeType, isMp4 } = pickRecorderMimeType();
     state.recordedMimeType = mimeType;
-    state.recordedIsMp4 = isMp4;
     state.recordedChunks = [];
     const recorder = new MediaRecorder(mixedStream, {mimeType});
     recorder.ondataavailable = e=>{ if (e.data.size>0) state.recordedChunks.push(e.data); };
-    recorder.onstop = ()=>{
-      const blobType = isMp4 ? 'video/mp4' : 'video/webm';
-      const blob = new Blob(state.recordedChunks, {type:blobType});
+    recorder.onstop = async ()=>{
+      // Some browsers (notably some Linux/headless Chrome builds without a real H.264
+      // encoder) report MediaRecorder support for 'video/mp4' but then silently record
+      // WebM/VP9+Opus bytes and just label the blob "mp4". That produces a file that many
+      // players open with no picture/no sound. Guard against it by checking the real
+      // container signature: a genuine MP4/ISO-BMFF file has an 'ftyp' box right after the
+      // first 4 bytes; WebM starts with an EBML header instead.
+      let realIsMp4 = isMp4;
+      const probeBlob = new Blob(state.recordedChunks, {type: isMp4 ? 'video/mp4' : 'video/webm'});
+      if (isMp4){
+        try{
+          const head = new Uint8Array(await probeBlob.slice(0, 12).arrayBuffer());
+          const tag = String.fromCharCode(head[4]||0, head[5]||0, head[6]||0, head[7]||0);
+          if (tag !== 'ftyp') realIsMp4 = false;
+        }catch(err){ realIsMp4 = false; }
+      }
+      state.recordedIsMp4 = realIsMp4;
+      const blob = realIsMp4 ? probeBlob : new Blob(state.recordedChunks, {type:'video/webm'});
       if (state.recordedBlobUrl) URL.revokeObjectURL(state.recordedBlobUrl);
       state.recordedBlobUrl = URL.createObjectURL(blob);
       el('recordBtn').disabled = false;
       el('downloadBtn').disabled = false;
-      el('downloadBtn').textContent = isMp4 ? t.download : t.download + ' *';
-      if (!isMp4){
+      el('downloadBtn').textContent = realIsMp4 ? t.download : t.download + ' *';
+      if (!realIsMp4){
         el('downloadWebmBtn').style.display = 'block';
         el('downloadWebmBtn').disabled = false;
       }
       const sizeMb = (blob.size/1024/1024).toFixed(2);
-      el('recStatus').innerHTML = isMp4 ? t.recDoneNative(sizeMb) : t.recDoneFallback(sizeMb);
+      el('recStatus').innerHTML = realIsMp4 ? t.recDoneNative(sizeMb) : t.recDoneFallback(sizeMb);
     };
     recorder.start();
     startPlayback();
