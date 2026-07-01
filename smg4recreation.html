@@ -1,0 +1,1419 @@
+<div id="app-root"></div>
+<style>
+  #app-root {
+    --bg: #0a0a0f;
+    --panel: #14141c;
+    --panel-2: #1c1c26;
+    --line: #2a2a38;
+    --text: #e9e9f0;
+    --muted: #8b8b9e;
+    --magenta: #ff2e88;
+    --cyan: #00e5ff;
+    --yellow: #ffe14d;
+    --danger: #ff5555;
+
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', Roboto, -apple-system, sans-serif;
+    min-height: 100%;
+    padding: 28px;
+    box-sizing: border-box;
+  }
+  #app-root * { box-sizing: border-box; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  .header { margin-bottom: 20px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .sub { color: var(--muted); font-size: 13.5px; line-height: 1.5; max-width: 640px; }
+  .langsw { display:flex; gap:6px; flex-shrink:0; }
+  .langsw button { padding:6px 12px; font-size:11.5px; }
+  .langsw button.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,255,0.08); }
+
+  .grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 20px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .panel + .panel { margin-top: 16px; }
+  .panel h2 {
+    font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+    margin: 0 0 14px 0; display: flex; align-items: center; gap: 8px;
+  }
+  .panel h2::before { content:''; width:8px; height:8px; background: var(--magenta); display:inline-block; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+
+  .stage-frame { position: relative; width: 100%; aspect-ratio: 1270/720; background:#000; border-radius:8px; overflow:hidden; border:1px solid var(--line); }
+  #stageCanvas { width:100%; height:100%; display:block; touch-action:none; }
+  #stageCanvas.position-mode { cursor: grab; }
+  #stageCanvas.position-mode:active { cursor: grabbing; }
+  .empty-stage { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; color:var(--muted); font-size:13px; text-align:center; padding:20px; }
+  .empty-stage b { color: var(--text); font-size: 15px; }
+
+  .transport { display:flex; align-items:center; gap:10px; margin-top:14px; }
+  button {
+    font-family: inherit; cursor:pointer; border:1px solid var(--line); background: var(--panel-2);
+    color: var(--text); padding:10px 16px; border-radius:7px; font-size:13px; font-weight:600;
+    letter-spacing:0.3px; transition: all .15s ease;
+  }
+  button:hover { border-color: var(--cyan); color: var(--cyan); }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity:.35; cursor:not-allowed; }
+  button:disabled:hover { border-color: var(--line); color: var(--text); }
+
+  .progress-track { flex:1; height:6px; background: var(--panel-2); border-radius:4px; overflow:hidden; border:1px solid var(--line); }
+  .progress-fill { height:100%; width:0%; background: linear-gradient(90deg, var(--cyan), var(--magenta)); }
+  .time-label { font-family:'Courier New',monospace; font-size:12px; color: var(--muted); min-width:74px; text-align:right; }
+
+  .dropzone { border:2px dashed var(--line); border-radius:8px; padding:16px; text-align:center; cursor:pointer; transition: all .15s ease; }
+  .dropzone:hover, .dropzone.drag { border-color: var(--cyan); background: rgba(0,229,255,0.04); }
+  .dropzone .big { font-size:13px; font-weight:600; margin-bottom:4px; }
+  .dropzone .small { font-size:11px; color: var(--muted); }
+  .dropzone .spec {
+    display:inline-block; margin-top:8px; font-family:'Courier New',monospace; font-size:10.5px; color: var(--yellow);
+    background: rgba(255,225,77,0.08); border:1px solid rgba(255,225,77,0.25); padding:4px 9px; border-radius:5px;
+  }
+
+  .clip-list { display:flex; flex-direction:column; gap:8px; margin-top:12px; max-height: 220px; overflow-y:auto; }
+  .clip-row { display:flex; align-items:center; gap:10px; background: var(--panel-2); border:1px solid var(--line); border-radius:7px; padding:8px; }
+  .clip-thumb { width:38px; height:38px; object-fit:contain; border-radius:4px; background:#000; border:1px solid var(--line); flex-shrink:0; }
+  .clip-meta { flex:1; min-width:0; }
+  .clip-name { font-size:11.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .clip-dims { font-size:10.5px; color: var(--muted); font-family:'Courier New',monospace; }
+  .clip-actions { display:flex; gap:4px; flex-shrink:0; }
+  .icon-btn { width:24px; height:24px; padding:0; display:flex; align-items:center; justify-content:center; font-size:12px; border-radius:5px; }
+
+  label.field-label { display:block; font-size:11px; letter-spacing:1px; text-transform:uppercase; color: var(--muted); margin-bottom:6px; margin-top:14px; }
+  label.field-label:first-child { margin-top:0; }
+  input[type=text] { width:100%; background: var(--panel-2); border:1px solid var(--line); color: var(--text); padding:10px 12px; border-radius:7px; font-size:14px; font-family:inherit; }
+  input[type=text]:focus { outline:none; border-color: var(--cyan); }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  select { width:100%; background: var(--panel-2); border:1px solid var(--line); color: var(--text); padding:9px 10px; border-radius:7px; font-size:12.5px; font-family:inherit; }
+  input[type=color] { width:100%; height:36px; border-radius:7px; border:1px solid var(--line); background: var(--panel-2); cursor:pointer; }
+  input[type=range] { width:100%; accent-color: var(--cyan); }
+  .range-row { display:flex; align-items:center; gap:8px; }
+  .range-row span { font-size:11px; font-family:'Courier New',monospace; color: var(--muted); width:44px; text-align:right; }
+
+  .toggle-row { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+  .toggle-row .lbl { font-size:12.5px; color: var(--text); }
+  .switch { position:relative; width:38px; height:22px; }
+  .switch input { opacity:0; width:0; height:0; }
+  .slider-tg { position:absolute; cursor:pointer; inset:0; background: var(--panel-2); border:1px solid var(--line); border-radius:22px; transition:.2s; }
+  .slider-tg:before { position:absolute; content:""; height:16px; width:16px; left:2px; top:2px; background: var(--muted); border-radius:50%; transition:.2s; }
+  input:checked + .slider-tg { background: rgba(0,229,255,0.25); border-color: var(--cyan); }
+  input:checked + .slider-tg:before { transform: translateX(16px); background: var(--cyan); }
+
+  .audio-row { display:flex; align-items:center; gap:10px; margin-top:14px; }
+  .audio-name { font-size:12px; color: var(--muted); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rec-dot { width:8px; height:8px; border-radius:50%; background: var(--danger); display:inline-block; margin-right:6px; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+  .footnote { font-size:11px; color: var(--muted); margin-top:10px; line-height:1.5; }
+  .hidden-input { display:none; }
+  .timeline-chip {
+    display:inline-flex; align-items:center; gap:5px; font-family:'Courier New',monospace; font-size:10.5px;
+    color: var(--muted); background: var(--panel-2); border:1px solid var(--line); padding:3px 8px; border-radius:5px; margin: 2px 4px 2px 0;
+  }
+  .timeline-chip b { color: var(--cyan); }
+</style>
+
+<script>
+(function(){
+  const root = document.getElementById('app-root');
+
+  // ---------------- i18n ----------------
+  const STR = {
+    es: {
+      sub: 'Sube tus imágenes, ajusta el ritmo y genera una intro con destello de entrada, órbita, desvanecido de salida y remate de logo con anillos de choque.',
+      chips: ['carga','estallido','pop-in + órbita','pop-out','flash','logo','hold'],
+      preview: 'Vista previa', play: '▶ Reproducir', pause: '⏸ Pausar',
+      exportTitle: 'Exportar', record: '⏺ Grabar intro', download: '⬇ Descargar MP4',
+      downloadWebm: '⬇ Descargar WEBM (sin internet)',
+      recIdle: 'Graba la reproducción en tiempo real (con tu audio si lo cargaste) y luego descárgala.',
+      recBusy: 'Grabando... reproduciendo la intro completa',
+      recDoneNative: n => `✓ Grabación lista (${n} MB) en MP4 nativo — no necesita internet. Pulsa "Descargar MP4".`,
+      recDoneFallback: n => `✓ Grabación lista (${n} MB). Tu navegador no graba MP4 directo: puedes descargar el WEBM ahora mismo (sin internet) o intentar convertir a MP4.`,
+      converting: '⏳ Convirtiendo a MP4... (necesita internet solo la primera vez, para bajar el conversor)',
+      mp4Ready: '✓ ¡MP4 descargado con éxito!',
+      mp4Error: '✕ No se pudo convertir a MP4 (sin internet o el servidor del conversor no respondió). Usa "Descargar WEBM" — funciona sin conexión y se reproduce en VLC, WhatsApp, etc.',
+      webmReady: '✓ ¡WEBM descargado! No necesitó internet.',
+      positionBtn: '✥ Ajustar posiciones', positionDone: '✓ Listo',
+      positionReset: '↺ Restablecer posiciones',
+      positionHint: 'Arrastra cada personaje en el escenario para fijar dónde queda al final. Se aplica también en la reproducción y la grabación.',
+      heroTitle: '1. Personaje central (protagonista)',
+      heroBig: 'Sube la imagen principal', heroSmall: 'Aparece en el centro, hace pop-in y pop-out con el resto',
+      heroSpec: 'Recomendado: PNG cuadrado, fondo transparente, ≥ 600×600 px',
+      clipsTitle: '2. Personajes orbitando',
+      clipsBig: 'Arrastra tus PNG aquí o haz clic', clipsSmall: 'Recomendado: 4 a 8 imágenes',
+      clipsSpec: 'PNG recortado, fondo transparente, 400×400 – 800×800 px',
+      logoTitle: '3. Logo final', logoToggle: 'Usar imagen de logo en vez de texto',
+      logoBig: 'Sube tu imagen de logo', logoSmall: 'PNG fondo transparente',
+      logoSpec: 'Recomendado: 800×800 px o similar, cuadrado',
+      logoTextLabel: 'Texto del logo',
+      scaleLabel: 'Tamaño',
+      bgTitle: '4. Fondo', bgToggle: 'Usar imagen de fondo propia',
+      bgBig: 'Sube tu imagen de fondo', bgSmall: 'Se ajusta para cubrir todo el cuadro',
+      bgSpec: 'JPG o PNG, recomendado ≥ 1280×720 px',
+      bgScaleLabel: 'Tamaño del fondo (zoom)',
+      colorsLabel: 'Colores de fondo (rayos)',
+      colorsHint: 'Se usan cuando no hay imagen de fondo propia',
+      settingsTitle: '5. Ajustes', formatLabel: 'Formato de salida',
+      formatOpts: ['1280 × 720 — 16:9 estándar','1920 × 1080 — Full HD','1080 × 1080 — cuadrado','1080 × 1920 — vertical'],
+      holdLabel: 'Duración del "hold" final (logo quieto)',
+      audioBtn: '🎵 Subir audio', audioNone: 'Sin audio', audioLoaded: n=>`Cargado: ${n}`,
+      audioFoot: 'Sube tu audio cada vez que abras el archivo — por seguridad no viene precargado.',
+      emptyBig: 'Sin personajes todavía', emptySmall: 'Sube al menos 1 PNG en el panel de la derecha para ver la vista previa',
+      remove: 'Eliminar',
+    },
+    en: {
+      sub: 'Upload your images, tune the timing, and generate an intro with a pop-in flash, orbit, pop-out fade, and a logo reveal with shockwave rings.',
+      chips: ['charge','burst','pop-in + orbit','pop-out','flash','logo','hold'],
+      preview: 'Preview', play: '▶ Play', pause: '⏸ Pause',
+      exportTitle: 'Export', record: '⏺ Record intro', download: '⬇ Download MP4',
+      downloadWebm: '⬇ Download WEBM (no internet needed)',
+      recIdle: 'Record the live playback (with your audio if loaded) and then download it.',
+      recBusy: 'Recording... playing the full intro',
+      recDoneNative: n => `✓ Recording ready (${n} MB) as native MP4 — no internet needed. Click "Download MP4".`,
+      recDoneFallback: n => `✓ Recording ready (${n} MB). Your browser can't record MP4 directly: download the WEBM right now (no internet) or try converting to MP4.`,
+      converting: '⏳ Converting to MP4... (needs internet only this first time, to fetch the converter)',
+      mp4Ready: '✓ MP4 downloaded successfully!',
+      mp4Error: '✕ Could not convert to MP4 (no internet, or the converter server didn\'t respond). Use "Download WEBM" instead — it works offline and plays fine in VLC, WhatsApp, etc.',
+      webmReady: '✓ WEBM downloaded! No internet was needed.',
+      positionBtn: '✥ Adjust positions', positionDone: '✓ Done',
+      positionReset: '↺ Reset positions',
+      positionHint: 'Drag each character on the stage to set where it ends up. This also applies to playback and recording.',
+      heroTitle: '1. Center character (main)',
+      heroBig: 'Upload the main image', heroSmall: 'Appears center-stage, pops in and out with the rest',
+      heroSpec: 'Recommended: square PNG, transparent background, ≥ 600×600 px',
+      clipsTitle: '2. Orbiting characters',
+      clipsBig: 'Drag your PNGs here or click', clipsSmall: 'Recommended: 4 to 8 images',
+      clipsSpec: 'Cutout PNG, transparent background, 400×400 – 800×800 px',
+      logoTitle: '3. Final logo', logoToggle: 'Use a logo image instead of text',
+      logoBig: 'Upload your logo image', logoSmall: 'Transparent background PNG',
+      logoSpec: 'Recommended: 800×800 px or similar, square',
+      logoTextLabel: 'Logo text',
+      scaleLabel: 'Size',
+      bgTitle: '4. Background', bgToggle: 'Use your own background image',
+      bgBig: 'Upload your background image', bgSmall: 'Scales to cover the whole frame',
+      bgSpec: 'JPG or PNG, recommended ≥ 1280×720 px',
+      bgScaleLabel: 'Background size (zoom)',
+      colorsLabel: 'Background colors (rays)',
+      colorsHint: 'Used when there is no custom background image',
+      settingsTitle: '5. Settings', formatLabel: 'Output format',
+      formatOpts: ['1280 × 720 — standard 16:9','1920 × 1080 — Full HD','1080 × 1080 — square','1080 × 1920 — vertical'],
+      holdLabel: 'Final "hold" duration (logo still)',
+      audioBtn: '🎵 Upload audio', audioNone: 'No audio', audioLoaded: n=>`Loaded: ${n}`,
+      audioFoot: 'Upload your audio every time you open the file — it is not preloaded, by design.',
+      emptyBig: 'No characters yet', emptySmall: 'Upload at least 1 PNG in the right panel to see the preview',
+      remove: 'Remove',
+    }
+  };
+
+  const persisted = { lang: 'en' };
+
+  function tpl(lang){
+    const t = STR[lang];
+    return `
+    <div class="wrap">
+      <div class="header">
+        <p class="sub">${t.sub}</p>
+        <div class="langsw">
+          <button id="langEs" class="${lang==='es'?'active':''}">ES</button>
+          <button id="langEn" class="${lang==='en'?'active':''}">EN</button>
+        </div>
+      </div>
+      <div style="margin:-6px 0 16px 0;">
+        ${t.chips.map((c,i)=>`<span class="timeline-chip">${c} <b id="chipTime${i}"></b></span>`).join('')}
+      </div>
+
+      <div class="grid">
+        <div>
+          <div class="panel">
+            <h2>${t.preview}</h2>
+            <div class="stage-frame">
+              <canvas id="stageCanvas" width="1270" height="720"></canvas>
+              <div class="empty-stage" id="emptyStage">
+                <b>${t.emptyBig}</b>
+                <span>${t.emptySmall}</span>
+              </div>
+            </div>
+            <div class="transport">
+              <button id="playBtn" disabled>${t.play}</button>
+              <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+              <div class="time-label" id="timeLabel">0.0s / 0.0s</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>${t.exportTitle}</h2>
+            <div class="row2">
+              <button id="recordBtn" disabled>${t.record}</button>
+              <button id="downloadBtn" disabled>${t.download}</button>
+            </div>
+            <button id="downloadWebmBtn" disabled style="width:100%; margin-top:8px; display:none;">${t.downloadWebm}</button>
+            <p class="footnote" id="recStatus">${t.recIdle}</p>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel">
+            <h2>${t.heroTitle}</h2>
+            <div class="dropzone" id="dropzoneHero">
+              <div class="big">${t.heroBig}</div>
+              <div class="small">${t.heroSmall}</div>
+              <div class="spec">${t.heroSpec}</div>
+            </div>
+            <input type="file" id="heroInput" class="hidden-input" accept="image/png,image/webp" />
+            <div id="heroPreviewWrap" style="display:none; margin-top:10px;">
+              <div class="clip-row">
+                <img class="clip-thumb" id="heroThumb" />
+                <div class="clip-meta">
+                  <div class="clip-name" id="heroName">—</div>
+                  <div class="clip-dims" id="heroDims">—</div>
+                </div>
+                <button class="icon-btn" id="heroRemove" title="${t.remove}">✕</button>
+              </div>
+              <label class="field-label">${t.scaleLabel}</label>
+              <div class="range-row">
+                <input type="range" id="heroScaleRange" min="40" max="200" step="5" value="100" />
+                <span id="heroScaleVal">100%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>${t.clipsTitle}</h2>
+            <div class="dropzone" id="dropzone">
+              <div class="big">${t.clipsBig}</div>
+              <div class="small">${t.clipsSmall}</div>
+              <div class="spec">${t.clipsSpec}</div>
+            </div>
+            <input type="file" id="fileInput" class="hidden-input" accept="image/png,image/webp" multiple />
+            <div class="clip-list" id="clipList"></div>
+            <div class="row2" style="margin-top:12px;">
+              <button id="positionBtn" disabled>${t.positionBtn}</button>
+              <button id="positionResetBtn" disabled>${t.positionReset}</button>
+            </div>
+            <p class="footnote" id="positionHint" style="display:none;">${t.positionHint}</p>
+          </div>
+
+          <div class="panel">
+            <h2>${t.logoTitle}</h2>
+            <div class="toggle-row">
+              <span class="lbl">${t.logoToggle}</span>
+              <label class="switch"><input type="checkbox" id="useLogoImg" /><span class="slider-tg"></span></label>
+            </div>
+            <div id="logoImgWrap" style="display:none; margin-top:10px;">
+              <div class="dropzone" id="dropzoneLogo">
+                <div class="big">${t.logoBig}</div>
+                <div class="small">${t.logoSmall}</div>
+                <div class="spec">${t.logoSpec}</div>
+              </div>
+              <input type="file" id="logoInput" class="hidden-input" accept="image/png,image/webp" />
+              <div id="logoPreviewWrap" style="display:none; margin-top:10px;">
+                <div class="clip-row">
+                  <img class="clip-thumb" id="logoThumb" />
+                  <div class="clip-meta"><div class="clip-name" id="logoName">—</div></div>
+                  <button class="icon-btn" id="logoRemove" title="${t.remove}">✕</button>
+                </div>
+              </div>
+            </div>
+            <div id="logoTextWrap">
+              <label class="field-label">${t.logoTextLabel}</label>
+              <input type="text" id="titleInput" value="MI CANAL" maxlength="24" />
+            </div>
+            <label class="field-label">${t.scaleLabel}</label>
+            <div class="range-row">
+              <input type="range" id="logoScaleRange" min="40" max="200" step="5" value="100" />
+              <span id="logoScaleVal">100%</span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>${t.bgTitle}</h2>
+            <div class="toggle-row">
+              <span class="lbl">${t.bgToggle}</span>
+              <label class="switch"><input type="checkbox" id="useBgImg" /><span class="slider-tg"></span></label>
+            </div>
+            <div id="bgImgWrap" style="display:none; margin-top:10px;">
+              <div class="dropzone" id="dropzoneBg">
+                <div class="big">${t.bgBig}</div>
+                <div class="small">${t.bgSmall}</div>
+                <div class="spec">${t.bgSpec}</div>
+              </div>
+              <input type="file" id="bgInput" class="hidden-input" accept="image/png,image/jpeg,image/webp" />
+              <div id="bgPreviewWrap" style="display:none; margin-top:10px;">
+                <div class="clip-row">
+                  <img class="clip-thumb" id="bgThumb" />
+                  <div class="clip-meta"><div class="clip-name" id="bgName">—</div></div>
+                  <button class="icon-btn" id="bgRemove" title="${t.remove}">✕</button>
+                </div>
+              </div>
+              <label class="field-label">${t.bgScaleLabel}</label>
+              <div class="range-row">
+                <input type="range" id="bgScaleRange" min="100" max="300" step="5" value="100" />
+                <span id="bgScaleVal">100%</span>
+              </div>
+            </div>
+            <div id="colorsWrap">
+              <label class="field-label">${t.colorsLabel}</label>
+              <div class="row2">
+                <input type="color" id="colorA" value="#1560d6" />
+                <input type="color" id="colorB" value="#ffffff" />
+              </div>
+              <p class="footnote" style="margin-top:6px;">${t.colorsHint}</p>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>${t.settingsTitle}</h2>
+            <label class="field-label">${t.formatLabel}</label>
+            <select id="formatSelect">
+              <option value="1280x720">${t.formatOpts[0]}</option>
+              <option value="1920x1080">${t.formatOpts[1]}</option>
+              <option value="1080x1080">${t.formatOpts[2]}</option>
+              <option value="1080x1920">${t.formatOpts[3]}</option>
+            </select>
+
+            <label class="field-label">${t.holdLabel}</label>
+            <div class="range-row">
+              <input type="range" id="holdRange" min="500" max="4000" step="100" value="1870" />
+              <span id="holdVal">1.87s</span>
+            </div>
+
+            <div class="audio-row">
+              <button id="audioBtn">${t.audioBtn}</button>
+              <span class="audio-name" id="audioName">${t.audioNone}</span>
+            </div>
+            <input type="file" id="audioInput" class="hidden-input" accept="audio/*" />
+            <audio id="userAudioEl" preload="auto" style="display:none"></audio>
+            <p class="footnote">${t.audioFoot}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    `;
+  }
+
+  // ---------------- State ----------------
+  const PHASES = { charge:150, burst:450, orbit:1400, popout:300, flash:300, zoom:400 }; // ms
+  const state = {
+    hero: null,
+    heroScale: 1,
+    clips: [],
+    logoImg: null,
+    useLogoImg: false,
+    logoScale: 1,
+    bgImg: null,
+    useBgImg: false,
+    bgScale: 1,
+    format: {w:1280,h:720},
+    title: 'MI CANAL',
+    colorA: '#1560d6',
+    colorB: '#ffffff',
+    holdMs: 1870,
+    audioEl: null,
+    audioUrl: null,
+    audioName: null,
+    audioCtx: null,
+    audioSourceNode: null,
+    audioDestNode: null,
+    playing: false,
+    startTime: 0,
+    totalDur: 0,
+    rafId: null,
+    recordedChunks: [],
+    recordedBlobUrl: null,
+    recordedMimeType: null,
+    recordedIsMp4: false,
+    positionMode: false,
+    dragId: null,
+    dots: [],
+  };
+  for (let i=0;i<40;i++){
+    state.dots.push({ a: Math.random()*Math.PI*2, r: 0.15+Math.random()*0.85, s: 2+Math.random()*4 });
+  }
+
+  // scratch canvas used to isolate the white-tint effect to just the character's own pixels
+  const scratch = document.createElement('canvas');
+  const scratchCtx = scratch.getContext('2d');
+
+  let canvas, ctx;
+  const el = id => root.querySelector('#'+id);
+
+  function build(){
+    state.positionMode = false;
+    state.dragId = null;
+    root.innerHTML = tpl(persisted.lang);
+    canvas = el('stageCanvas');
+    ctx = canvas.getContext('2d');
+    canvas.width = state.format.w; canvas.height = state.format.h;
+    wireEvents();
+    syncUIFromState();
+    computeTotalDur();
+    updateChipTimes();
+  }
+
+  function updateChipTimes(){
+    const P = PHASES;
+    const bounds = [
+      [0, P.charge],
+      [P.charge, P.charge+P.burst],
+      [P.charge+P.burst, P.charge+P.burst+P.orbit],
+      [P.charge+P.burst+P.orbit, P.charge+P.burst+P.orbit+P.popout],
+      [P.charge+P.burst+P.orbit+P.popout, P.charge+P.burst+P.orbit+P.popout+P.flash],
+      [P.charge+P.burst+P.orbit+P.popout+P.flash, P.charge+P.burst+P.orbit+P.popout+P.flash+P.zoom],
+    ];
+    const base = P.charge+P.burst+P.orbit+P.popout+P.flash+P.zoom;
+    bounds.forEach((b,i)=>{
+      const node = el('chipTime'+i);
+      if (node) node.textContent = `${(b[0]/1000).toFixed(1)}–${(b[1]/1000).toFixed(1)}s`;
+    });
+    const holdNode = el('chipTime6');
+    if (holdNode) holdNode.textContent = `${(base/1000).toFixed(1)}–${(state.totalDur/1000).toFixed(2)}s`;
+  }
+
+  function fmtTime(s){ return s.toFixed(1)+'s'; }
+
+  function computeTotalDur(){
+    const base = PHASES.charge + PHASES.burst + PHASES.orbit + PHASES.popout + PHASES.flash + PHASES.zoom;
+    state.totalDur = base + state.holdMs;
+  }
+
+  function assignOrbitParams(keepPositions){
+    const n = state.clips.length;
+    state.clips.forEach((c,i)=>{
+      if (!keepPositions || !c.userPositioned){
+        c.angle = (i / n) * Math.PI * 2 + (Math.random()-0.5)*0.2;
+        c.radiusEnd = 0.36 + (i%3)*0.09;
+        c.userPositioned = false;
+      }
+      c.arriveStart = (i / Math.max(n,1)) * 180;
+      c.arriveDur = 380 + Math.random()*130;
+      if (c.scale === undefined) c.scale = 0.30 + Math.random()*0.10;
+      if (c.userScale === undefined) c.userScale = 1;
+      c.spin = (Math.random()-0.5)*0.6;
+    });
+  }
+
+  // ---------------- UI syncing (after language switch / rebuild) ----------------
+  function syncUIFromState(){
+    el('formatSelect').value = `${state.format.w}x${state.format.h}`;
+    el('titleInput').value = state.title;
+    el('colorA').value = state.colorA;
+    el('colorB').value = state.colorB;
+    el('holdRange').value = state.holdMs;
+    el('holdVal').textContent = (state.holdMs/1000).toFixed(2)+'s';
+    el('useLogoImg').checked = state.useLogoImg;
+    el('logoImgWrap').style.display = state.useLogoImg ? 'block' : 'none';
+    el('logoTextWrap').style.display = state.useLogoImg ? 'none' : 'block';
+    el('heroScaleRange').value = Math.round(state.heroScale*100);
+    el('heroScaleVal').textContent = Math.round(state.heroScale*100)+'%';
+    el('logoScaleRange').value = Math.round(state.logoScale*100);
+    el('logoScaleVal').textContent = Math.round(state.logoScale*100)+'%';
+    el('useBgImg').checked = state.useBgImg;
+    el('bgImgWrap').style.display = state.useBgImg ? 'block' : 'none';
+    el('colorsWrap').style.display = state.useBgImg ? 'none' : 'block';
+    el('bgScaleRange').value = Math.round(state.bgScale*100);
+    el('bgScaleVal').textContent = Math.round(state.bgScale*100)+'%';
+
+    if (state.hero){
+      el('heroThumb').src = state.hero.img.src;
+      el('heroName').textContent = state.hero.name;
+      el('heroDims').textContent = `${state.hero.w}×${state.hero.h}px`;
+      el('heroPreviewWrap').style.display = 'block';
+    }
+    if (state.logoImg){
+      el('logoThumb').src = state.logoImg.img.src;
+      el('logoName').textContent = state.logoImg.name;
+      el('logoPreviewWrap').style.display = 'block';
+    }
+    if (state.bgImg){
+      el('bgThumb').src = state.bgImg.img.src;
+      el('bgName').textContent = state.bgImg.name;
+      el('bgPreviewWrap').style.display = 'block';
+    }
+    renderClipList();
+
+    const has = state.clips.length > 0;
+    el('emptyStage').style.display = has ? 'none' : 'flex';
+    el('playBtn').disabled = !has;
+    el('recordBtn').disabled = !has;
+    el('positionBtn').disabled = !has;
+    el('positionResetBtn').disabled = !has;
+
+    // reattach audio element + persisted blob url
+    const audioNode = el('userAudioEl');
+    if (state.audioUrl){
+      audioNode.src = state.audioUrl;
+      state.audioEl = audioNode;
+      el('audioName').textContent = STR[persisted.lang].audioLoaded(state.audioName);
+    } else {
+      state.audioEl = audioNode;
+    }
+
+    if (has) drawStatic();
+  }
+
+  // ---------------- Events ----------------
+  function wireEvents(){
+    el('langEs').addEventListener('click', ()=>{ if(persisted.lang!=='es'){ persisted.lang='es'; build(); } });
+    el('langEn').addEventListener('click', ()=>{ if(persisted.lang!=='en'){ persisted.lang='en'; build(); } });
+
+    el('formatSelect').addEventListener('change', e=>{
+      const [w,h] = e.target.value.split('x').map(Number);
+      state.format = {w,h};
+      canvas.width = w; canvas.height = h;
+      drawStatic();
+    });
+    el('titleInput').addEventListener('input', e=>{ state.title = e.target.value || 'MI CANAL'; drawStatic(); });
+    el('colorA').addEventListener('input', e=>{ state.colorA = e.target.value; drawStatic(); });
+    el('colorB').addEventListener('input', e=>{ state.colorB = e.target.value; drawStatic(); });
+    el('holdRange').addEventListener('input', e=>{
+      state.holdMs = Number(e.target.value);
+      el('holdVal').textContent = (state.holdMs/1000).toFixed(2)+'s';
+      computeTotalDur();
+      updateChipTimes();
+    });
+
+    el('useLogoImg').addEventListener('change', e=>{
+      state.useLogoImg = e.target.checked;
+      el('logoImgWrap').style.display = state.useLogoImg ? 'block' : 'none';
+      el('logoTextWrap').style.display = state.useLogoImg ? 'none' : 'block';
+      drawStatic();
+    });
+
+    el('heroScaleRange').addEventListener('input', e=>{
+      state.heroScale = Number(e.target.value)/100;
+      el('heroScaleVal').textContent = e.target.value+'%';
+      drawStatic();
+    });
+    el('logoScaleRange').addEventListener('input', e=>{
+      state.logoScale = Number(e.target.value)/100;
+      el('logoScaleVal').textContent = e.target.value+'%';
+      drawStatic();
+    });
+
+    el('useBgImg').addEventListener('change', e=>{
+      state.useBgImg = e.target.checked;
+      el('bgImgWrap').style.display = state.useBgImg ? 'block' : 'none';
+      el('colorsWrap').style.display = state.useBgImg ? 'none' : 'block';
+      drawStatic();
+    });
+    el('dropzoneBg').addEventListener('click', ()=> el('bgInput').click());
+    el('bgInput').addEventListener('change', e=>{
+      const f = e.target.files[0]; if (!f) return;
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        const img = new Image();
+        img.onload = ()=>{
+          state.bgImg = { img, name:f.name };
+          el('bgThumb').src = img.src;
+          el('bgName').textContent = f.name;
+          el('bgPreviewWrap').style.display = 'block';
+          drawStatic();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(f);
+    });
+    el('bgRemove').addEventListener('click', ()=>{ state.bgImg = null; el('bgPreviewWrap').style.display = 'none'; drawStatic(); });
+    el('bgScaleRange').addEventListener('input', e=>{
+      state.bgScale = Number(e.target.value)/100;
+      el('bgScaleVal').textContent = e.target.value+'%';
+      drawStatic();
+    });
+
+    el('dropzoneHero').addEventListener('click', ()=> el('heroInput').click());
+    el('heroInput').addEventListener('change', e=>{
+      const f = e.target.files[0]; if (!f) return;
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        const img = new Image();
+        img.onload = ()=>{
+          state.hero = { img, name:f.name, w:img.naturalWidth, h:img.naturalHeight };
+          el('heroThumb').src = img.src;
+          el('heroName').textContent = f.name;
+          el('heroDims').textContent = `${img.naturalWidth}×${img.naturalHeight}px`;
+          el('heroPreviewWrap').style.display = 'block';
+          drawStatic();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(f);
+    });
+    el('heroRemove').addEventListener('click', ()=>{ state.hero = null; el('heroPreviewWrap').style.display = 'none'; drawStatic(); });
+
+    el('dropzoneLogo').addEventListener('click', ()=> el('logoInput').click());
+    el('logoInput').addEventListener('change', e=>{
+      const f = e.target.files[0]; if (!f) return;
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        const img = new Image();
+        img.onload = ()=>{
+          state.logoImg = { img, name:f.name };
+          el('logoThumb').src = img.src;
+          el('logoName').textContent = f.name;
+          el('logoPreviewWrap').style.display = 'block';
+          drawStatic();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(f);
+    });
+    el('logoRemove').addEventListener('click', ()=>{ state.logoImg = null; el('logoPreviewWrap').style.display = 'none'; drawStatic(); });
+
+    const dropzone = el('dropzone'), fileInput = el('fileInput');
+    dropzone.addEventListener('click', ()=> fileInput.click());
+    dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.classList.add('drag'); });
+    dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('drag'));
+    dropzone.addEventListener('drop', e=>{ e.preventDefault(); dropzone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+    fileInput.addEventListener('change', e=> handleFiles(e.target.files));
+
+    el('audioBtn').addEventListener('click', ()=> el('audioInput').click());
+    el('audioInput').addEventListener('change', e=>{
+      const f = e.target.files[0]; if (!f) return;
+      if (state.audioUrl) URL.revokeObjectURL(state.audioUrl);
+      state.audioUrl = URL.createObjectURL(f);
+      state.audioName = f.name;
+      state.audioSourceNode = null; // reset so a fresh MediaElementSource can be created
+      const audioNode = el('userAudioEl');
+      audioNode.src = state.audioUrl;
+      audioNode.load();
+      state.audioEl = audioNode;
+      el('audioName').textContent = STR[persisted.lang].audioLoaded(f.name);
+      e.target.value = '';
+    });
+
+    el('playBtn').addEventListener('click', ()=>{ state.playing ? stopPlayback(false) : startPlayback(); });
+
+    el('recordBtn').addEventListener('click', doRecord);
+    el('downloadBtn').addEventListener('click', downloadAsMp4);
+    el('downloadWebmBtn').addEventListener('click', downloadWebmDirect);
+
+    el('positionBtn').addEventListener('click', togglePositionMode);
+    el('positionResetBtn').addEventListener('click', ()=>{
+      state.clips.forEach(c=> c.userPositioned = false);
+      assignOrbitParams(false);
+      if (state.positionMode) drawPositionEditor(); else drawStatic();
+    });
+
+    wirePositionDrag();
+  }
+
+  function handleFiles(fileList){
+    const files = Array.from(fileList).filter(f=>f.type.startsWith('image/'));
+    files.forEach(f=>{
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        const img = new Image();
+        img.onload = ()=>{
+          state.clips.push({ id:'c'+Math.random().toString(36).slice(2), img, name:f.name, w:img.naturalWidth, h:img.naturalHeight });
+          assignOrbitParams(true);
+          onClipsChanged();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(f);
+    });
+    el('fileInput').value = '';
+  }
+
+  function onClipsChanged(){
+    renderClipList();
+    const has = state.clips.length > 0;
+    el('emptyStage').style.display = has ? 'none' : 'flex';
+    el('playBtn').disabled = !has;
+    el('recordBtn').disabled = !has;
+    el('positionBtn').disabled = !has;
+    el('positionResetBtn').disabled = !has;
+    if (state.positionMode) drawPositionEditor();
+    else if (has) drawStatic();
+  }
+
+  function renderClipList(){
+    const clipListEl = el('clipList');
+    const t = STR[persisted.lang];
+    clipListEl.innerHTML = '';
+    state.clips.forEach((c, idx)=>{
+      const wrap = document.createElement('div');
+      const pct = Math.round((c.userScale===undefined?1:c.userScale)*100);
+      wrap.innerHTML = `
+        <div class="clip-row">
+          <img class="clip-thumb" src="${c.img.src}" />
+          <div class="clip-meta">
+            <div class="clip-name">${idx+1}. ${c.name}</div>
+            <div class="clip-dims">${c.w}×${c.h}px</div>
+          </div>
+          <div class="clip-actions"><button class="icon-btn delBtn" data-id="${c.id}">✕</button></div>
+        </div>
+        <div class="range-row" style="margin-top:6px;">
+          <span style="font-size:10.5px; color:var(--muted); width:auto; margin-right:2px;">${t.scaleLabel}</span>
+          <input type="range" class="clipScaleRange" data-id="${c.id}" min="40" max="200" step="5" value="${pct}" />
+          <span class="clipScaleVal" data-id="${c.id}">${pct}%</span>
+        </div>
+      `;
+      clipListEl.appendChild(wrap);
+    });
+    clipListEl.querySelectorAll('.delBtn').forEach(b=>{
+      b.addEventListener('click', e=>{
+        state.clips = state.clips.filter(c=>c.id!==e.target.dataset.id);
+        assignOrbitParams(true);
+        onClipsChanged();
+      });
+    });
+    clipListEl.querySelectorAll('.clipScaleRange').forEach(inp=>{
+      inp.addEventListener('input', e=>{
+        const id = e.target.dataset.id;
+        const c = state.clips.find(cl=>cl.id===id);
+        if (!c) return;
+        c.userScale = Number(e.target.value)/100;
+        const valEl = clipListEl.querySelector(`.clipScaleVal[data-id="${id}"]`);
+        if (valEl) valEl.textContent = e.target.value+'%';
+        drawStatic();
+      });
+    });
+  }
+
+  // ---------------- Drawing helpers ----------------
+  function drawImageContain(image, cx, cy, maxDim){
+    const ratio = Math.min(maxDim / image.naturalWidth, maxDim / image.naturalHeight);
+    const iw = image.naturalWidth * ratio, ih = image.naturalHeight * ratio;
+    ctx.drawImage(image, cx - iw/2, cy - ih/2, iw, ih);
+  }
+
+  // draws an image covering the whole w×h frame (like CSS background-size:cover), with an extra zoom factor
+  function drawImageCover(image, w, h, zoom){
+    const cover = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+    const s = cover * Math.max(1, zoom);
+    const iw = image.naturalWidth * s, ih = image.naturalHeight * s;
+    const x = (w - iw) / 2, y = (h - ih) / 2;
+    ctx.drawImage(image, x, y, iw, ih);
+  }
+
+  // base layer: either the user's own background image (cover-fit + zoom) or plain black
+  function drawBackgroundLayer(w, h){
+    if (state.useBgImg && state.bgImg){
+      drawImageCover(state.bgImg.img, w, h, state.bgScale);
+    } else {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, h);
+    }
+  }
+
+  // whitens ONLY the character's own opaque pixels (isolated via an offscreen scratch canvas)
+  function drawImageWhitened(image, cx, cy, maxDim, whiteAmt, alpha){
+    if (maxDim <= 1 || alpha <= 0) return;
+    const ratio = Math.min(maxDim / image.naturalWidth, maxDim / image.naturalHeight);
+    const iw = Math.max(1, Math.round(image.naturalWidth * ratio));
+    const ih = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const x = cx - iw/2, y = cy - ih/2;
+
+    if (whiteAmt <= 0.01){
+      ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(image, x, y, iw, ih); ctx.restore();
+      return;
+    }
+
+    scratch.width = iw; scratch.height = ih;
+    scratchCtx.clearRect(0,0,iw,ih);
+    scratchCtx.globalCompositeOperation = 'source-over';
+    scratchCtx.globalAlpha = 1;
+    scratchCtx.drawImage(image, 0, 0, iw, ih);
+    scratchCtx.globalCompositeOperation = 'source-atop';
+    scratchCtx.fillStyle = `rgba(255,255,255,${whiteAmt})`;
+    scratchCtx.fillRect(0,0,iw,ih);
+    scratchCtx.globalCompositeOperation = 'source-over';
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(scratch, x, y, iw, ih);
+    ctx.restore();
+  }
+
+  function hexToRgb(hex){ const v = hex.replace('#',''); return [parseInt(v.slice(0,2),16), parseInt(v.slice(2,4),16), parseInt(v.slice(4,6),16)]; }
+
+  function drawRays(cx, cy, R, rotation, colorA, colorB, brightness, breathe){
+    const rays = 24;
+    const Reff = R * (1 + breathe*0.02);
+    const hasCustomBg = state.useBgImg && state.bgImg;
+
+    if (!hasCustomBg){
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rotation);
+      for (let i=0;i<rays;i++){
+        ctx.fillStyle = (i%2===0) ? colorA : colorB;
+        ctx.beginPath();
+        const a1 = (i/rays)*Math.PI*2, a2 = ((i+1)/rays)*Math.PI*2;
+        ctx.moveTo(0,0);
+        ctx.lineTo(Math.cos(a1)*Reff, Math.sin(a1)*Reff);
+        ctx.lineTo(Math.cos(a2)*Reff, Math.sin(a2)*Reff);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-rotation*0.4);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    state.dots.forEach(d=>{
+      const rr = d.r * Reff;
+      const x = Math.cos(d.a)*rr, y = Math.sin(d.a)*rr;
+      ctx.beginPath(); ctx.arc(x,y,d.s,0,Math.PI*2); ctx.fill();
+    });
+    ctx.restore();
+
+    const glowMul = hasCustomBg ? 0.55 : 1;
+    const g = ctx.createRadialGradient(cx,cy,0, cx,cy, Reff*0.65);
+    g.addColorStop(0, `rgba(255,255,255,${0.9*brightness*glowMul})`);
+    g.addColorStop(0.35, `rgba(255,255,255,${0.25*brightness*glowMul})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+
+    const vg = ctx.createRadialGradient(cx,cy,Reff*0.4, cx,cy,Reff*0.95);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(1, hasCustomBg ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.28)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+  }
+
+  function easeOutCubic(x){ return 1 - Math.pow(1-x, 3); }
+  function easeOutBack(x){ const c1=1.70158, c3=c1+1; return 1 + c3*Math.pow(x-1,3) + c1*Math.pow(x-1,2); }
+  function easeInBack(x){ const c1=1.70158, c3=c1+1; return c3*x*x*x - c1*x*x; }
+
+  function drawCharacter(c, cx, cy, w, h, tOrbit, exitP){
+    const arriveEnd = c.arriveStart + c.arriveDur;
+    const localT = Math.min(1, Math.max(0, (tOrbit - c.arriveStart) / c.arriveDur));
+    const startR = Math.max(w,h) * 0.75;
+    const endR = Math.min(w,h) * c.radiusEnd;
+    const r = startR + (endR - startR) * Math.min(1, easeOutCubic(localT));
+    const ang = c.angle + c.spin * (1-Math.min(1,easeOutCubic(localT))) * 2;
+    const x = cx + Math.cos(ang) * r;
+    const y = cy + Math.sin(ang) * r;
+
+    const userScale = c.userScale===undefined ? 1 : c.userScale;
+    let maxDim = Math.min(w,h) * c.scale * userScale * (0.4 + 0.6*Math.min(1,localT));
+    let alpha = Math.max(0.1, Math.min(1,localT*1.6));
+    let whiteAmt = 0;
+
+    const timeSinceArrival = tOrbit - arriveEnd;
+    if (timeSinceArrival >= 0 && timeSinceArrival < 220){
+      whiteAmt = Math.max(0, 1 - timeSinceArrival/220);
+    }
+    if (localT >= 1){
+      const bouncePhase = Math.min(1, timeSinceArrival/300);
+      const bounce = 1 + (1-bouncePhase) * 0.12 * Math.cos(bouncePhase*Math.PI*3);
+      maxDim *= Math.max(0.85, bounce);
+    }
+
+    if (exitP > 0){
+      maxDim *= Math.max(0, 1 - Math.min(1,exitP*1.15));
+      whiteAmt = Math.min(1, exitP*1.8);
+      alpha = Math.max(0, 1 - Math.max(0, exitP-0.7)/0.3);
+    }
+
+    // short comet-style trail while flying in from the edge — gives the pop-in a punchier,
+    // more "SMG4 style" whoosh instead of a flat linear slide
+    if (exitP <= 0 && localT > 0 && localT < 0.92){
+      const trailBackT = Math.max(0, localT - 0.16);
+      const trailR = startR + (endR - startR) * Math.min(1, easeOutCubic(trailBackT));
+      const trailAng = c.angle + c.spin * (1-Math.min(1,easeOutCubic(trailBackT))) * 2;
+      const tx = cx + Math.cos(trailAng) * trailR, ty = cy + Math.sin(trailAng) * trailR;
+      const trailDim = maxDim * 0.82;
+      drawImageWhitened(c.img, tx, ty, trailDim, 0.5, alpha * 0.30);
+    }
+
+    drawImageWhitened(c.img, x, y, maxDim, whiteAmt, alpha);
+  }
+
+  // punchy camera-shake amount for a given point on the timeline — strongest right at the
+  // burst "hit" and again on the final flash, fading out fast (that's what sells the impact
+  // in real cartoon-network-style intros like SMG4's)
+  function shakeAmountAt(t0, P){
+    let mag = 0;
+    const burstEnd = P.charge + P.burst;
+    if (t0 < burstEnd){
+      const lp = t0 / burstEnd;
+      mag = Math.max(mag, (1-lp) * 5.5);
+    }
+    const flashStart = P.charge + P.burst + P.orbit + P.popout;
+    if (t0 >= flashStart && t0 < flashStart + P.flash){
+      const fp = (t0 - flashStart) / P.flash;
+      mag = Math.max(mag, Math.sin(fp*Math.PI) * 5);
+    }
+    return mag;
+  }
+
+  function render(elapsedMs){
+    const {w,h} = state.format;
+    const cx = w/2, cy = h/2;
+    ctx.clearRect(0,0,w,h);
+
+    const shakeMag = shakeAmountAt(elapsedMs, PHASES);
+    ctx.save();
+    if (shakeMag > 0.01){
+      ctx.translate((Math.random()-0.5)*2*shakeMag, (Math.random()-0.5)*2*shakeMag);
+    }
+    try{
+      renderInner(elapsedMs, w, h, cx, cy);
+    } finally {
+      ctx.restore();
+    }
+  }
+
+  function renderInner(elapsedMs, w, h, cx, cy){
+    drawBackgroundLayer(w, h);
+
+    const rgbA = hexToRgb(state.colorA), rgbB = hexToRgb(state.colorB);
+    const colA = `rgb(${rgbA.join(',')})`, colB = `rgb(${rgbB.join(',')})`;
+    const R = Math.max(w,h) * 0.9;
+
+    let t = elapsedMs;
+    const P = PHASES;
+
+    if (t < P.charge){
+      const p = t / P.charge;
+      const pulse = Math.abs(Math.sin(p * Math.PI * 2.4));
+      const rad = 4 + pulse * 26 * p;
+      const g = ctx.createRadialGradient(cx,cy,0, cx,cy,rad*3);
+      g.addColorStop(0, `rgba(255,255,255,${0.5+0.5*pulse})`);
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx,cy,rad*3,0,Math.PI*2); ctx.fill();
+      return;
+    }
+    t -= P.charge;
+
+    if (t < P.burst){
+      const p = t / P.burst;
+      const Rb = R * easeOutCubic(p);
+      drawRays(cx, cy, Rb, p*0.6, colA, colB, p, 0);
+      return;
+    }
+    t -= P.burst;
+
+    if (t < P.orbit){
+      const p = t / P.orbit;
+      const rotation = 0.6 + p * 1.2;
+      const breathe = Math.sin(p*Math.PI*6);
+      drawRays(cx, cy, R, rotation, colA, colB, 1, breathe);
+      state.clips.forEach(c=> drawCharacter(c, cx, cy, w, h, t, 0));
+      if (state.hero){
+        const heroLocalT = Math.min(1, Math.max(0, (t - 250) / 750));
+        const e = easeOutBack(heroLocalT);
+        const maxDim = Math.min(w,h) * 0.34 * state.heroScale * e;
+        const timeSinceArrival = t - (250+750);
+        let whiteAmt = 0;
+        if (timeSinceArrival >= 0 && timeSinceArrival < 220) whiteAmt = Math.max(0, 1-timeSinceArrival/220);
+        if (maxDim > 4) drawImageWhitened(state.hero.img, cx, cy, maxDim, whiteAmt, Math.min(1, heroLocalT*1.5));
+      }
+      return;
+    }
+    t -= P.orbit;
+
+    if (t < P.popout){
+      const p = t / P.popout;
+      const rotation = 1.8 + p*0.4;
+      drawRays(cx, cy, R, rotation, colA, colB, 1, 0);
+      state.clips.forEach(c=> drawCharacter(c, cx, cy, w, h, P.orbit + 9999, p));
+      if (state.hero){
+        const maxDim = Math.min(w,h) * 0.34 * state.heroScale * Math.max(0, 1-p*1.15);
+        const whiteAmt = Math.min(1, p*1.8);
+        const alpha = Math.max(0, 1 - Math.max(0,p-0.7)/0.3);
+        drawImageWhitened(state.hero.img, cx, cy, maxDim, whiteAmt, alpha);
+      }
+      return;
+    }
+    t -= P.popout;
+
+    if (t < P.flash){
+      const p = t / P.flash;
+      drawRays(cx, cy, R, 2.2, colA, colB, 1, 0);
+      const flashAlpha = p < 0.5 ? (p/0.5) : (1-(p-0.5)/0.5);
+      ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`;
+      ctx.fillRect(0,0,w,h);
+      return;
+    }
+    t -= P.flash;
+
+    if (t < P.zoom){
+      const p = t / P.zoom;
+      drawRays(cx, cy, R, 2.2 + p*0.3, colA, colB, 1, 0);
+      drawShockRings(cx, cy, w, h, p);
+      drawLogo(cx, cy, w, h, p);
+      return;
+    }
+    t -= P.zoom;
+
+    const p = Math.min(1, t / state.holdMs);
+    const breathe = Math.sin(p*Math.PI*4) * 0.5;
+    drawRays(cx, cy, R, 2.5 + p*0.5, colA, colB, 1, breathe);
+    drawLogo(cx, cy, w, h, 1, p);
+  }
+
+  function drawShockRings(cx, cy, w, h, p){
+    const maxR = Math.max(w,h) * 0.55;
+    for (let i=0;i<3;i++){
+      const ringP = Math.min(1, Math.max(0, p*1.4 - i*0.18));
+      if (ringP<=0) continue;
+      const rad = maxR * easeOutCubic(ringP);
+      const alpha = (1-ringP) * 0.55;
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+      ctx.lineWidth = Math.max(1, h*0.006);
+      ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawLogo(cx, cy, w, h, zoomP, holdP){
+    const idleBounce = holdP!==undefined ? 1 + Math.sin((holdP||0)*Math.PI*3)*0.015 : 1;
+    const scale = (1.6 - Math.min(zoomP*1.6,1)*0.6) * idleBounce;
+    const wobble = Math.max(0, 1-zoomP) * 6;
+    ctx.save();
+    ctx.translate(cx + (Math.random()-0.5)*wobble, cy + (Math.random()-0.5)*wobble);
+    ctx.scale(scale, scale);
+
+    if (state.useLogoImg && state.logoImg){
+      const maxDim = Math.min(w,h) * 0.38 * state.logoScale;
+      if (zoomP < 0.6){
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.7;
+        ctx.translate(-6,0); drawImageContain(state.logoImg.img, 0, 0, maxDim); ctx.translate(6,0);
+        ctx.translate(6,0); drawImageContain(state.logoImg.img, 0, 0, maxDim); ctx.translate(-6,0);
+        ctx.restore();
+      }
+      ctx.globalAlpha = Math.min(1, zoomP*2);
+      drawImageContain(state.logoImg.img, 0, 0, maxDim);
+    } else {
+      const fontSize = Math.round(h * 0.15 * state.logoScale);
+      ctx.font = `900 ${fontSize}px 'Arial Black', Impact, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      if (zoomP < 0.6){
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = 'rgba(255,0,90,0.75)';
+        ctx.fillText(state.title, -6, 0);
+        ctx.fillStyle = 'rgba(0,220,255,0.75)';
+        ctx.fillText(state.title, 6, 0);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.lineWidth = Math.max(2, fontSize*0.03);
+      ctx.strokeText(state.title, 0, 0);
+      ctx.fillText(state.title, 0, 0);
+    }
+    ctx.restore();
+  }
+
+  function drawStatic(){
+    if (state.positionMode){ drawPositionEditor(); return; }
+    const P = PHASES;
+    render(P.charge+P.burst+P.orbit+P.popout+P.flash+P.zoom+60);
+  }
+
+  // ---------------- Position editor (drag orbiting characters) ----------------
+  function clipFinalPos(c, w, h){
+    const cx = w/2, cy = h/2;
+    const r = Math.min(w,h) * c.radiusEnd;
+    return { x: cx + Math.cos(c.angle)*r, y: cy + Math.sin(c.angle)*r };
+  }
+  function clipMaxDim(c, w, h){
+    const userScale = c.userScale===undefined ? 1 : c.userScale;
+    return Math.min(w,h) * c.scale * userScale;
+  }
+
+  function drawPositionEditor(){
+    const {w,h} = state.format;
+    const cx = w/2, cy = h/2;
+    ctx.clearRect(0,0,w,h);
+    drawBackgroundLayer(w,h);
+    const rgbA = hexToRgb(state.colorA), rgbB = hexToRgb(state.colorB);
+    drawRays(cx, cy, Math.max(w,h)*0.9, 2.5, `rgb(${rgbA.join(',')})`, `rgb(${rgbB.join(',')})`, 1, 0);
+
+    state.clips.forEach(c=>{
+      const {x,y} = clipFinalPos(c,w,h);
+      drawImageWhitened(c.img, x, y, clipMaxDim(c,w,h), 0, 1);
+    });
+    if (state.hero){
+      const maxDim = Math.min(w,h) * 0.34 * state.heroScale;
+      drawImageWhitened(state.hero.img, cx, cy, maxDim, 0, 1);
+    }
+
+    state.clips.forEach((c, idx)=>{
+      const {x,y} = clipFinalPos(c,w,h);
+      const rr = Math.max(w,h) * 0.028 + clipMaxDim(c,w,h)*0.5;
+      ctx.save();
+      const active = state.dragId === c.id;
+      ctx.strokeStyle = active ? '#00e5ff' : 'rgba(255,255,255,0.65)';
+      ctx.lineWidth = active ? 3 : 2;
+      if (!active) ctx.setLineDash([7,6]);
+      ctx.beginPath(); ctx.arc(x,y,rr,0,Math.PI*2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = active ? '#00e5ff' : 'rgba(10,10,15,0.8)';
+      ctx.beginPath(); ctx.arc(x, y-rr-16, 12, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = active ? '#0a0a0f' : '#e9e9f0';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(idx+1), x, y-rr-16);
+      ctx.restore();
+    });
+  }
+
+  function canvasPointFromEvent(evt){
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+    return { x: (evt.clientX - rect.left) * sx, y: (evt.clientY - rect.top) * sy };
+  }
+
+  function togglePositionMode(){
+    state.positionMode = !state.positionMode;
+    const t = STR[persisted.lang];
+    el('positionBtn').textContent = state.positionMode ? t.positionDone : t.positionBtn;
+    el('positionHint').style.display = state.positionMode ? 'block' : 'none';
+    canvas.classList.toggle('position-mode', state.positionMode);
+    el('playBtn').disabled = state.positionMode || state.clips.length===0;
+    el('recordBtn').disabled = state.positionMode || state.clips.length===0;
+    if (state.playing) stopPlayback(false);
+    if (state.positionMode) drawPositionEditor(); else drawStatic();
+  }
+
+  function wirePositionDrag(){
+    canvas.addEventListener('pointerdown', e=>{
+      if (!state.positionMode) return;
+      const {w,h} = state.format;
+      const p = canvasPointFromEvent(e);
+      let hit = null, hitDist = Infinity;
+      state.clips.forEach(c=>{
+        const fp = clipFinalPos(c,w,h);
+        const rr = Math.max(w,h)*0.028 + clipMaxDim(c,w,h)*0.5;
+        const d = Math.hypot(p.x-fp.x, p.y-fp.y);
+        if (d <= rr*1.25 && d < hitDist){ hit = c; hitDist = d; }
+      });
+      if (hit){
+        state.dragId = hit.id;
+        canvas.setPointerCapture(e.pointerId);
+        drawPositionEditor();
+      }
+    });
+    canvas.addEventListener('pointermove', e=>{
+      if (!state.positionMode || !state.dragId) return;
+      const {w,h} = state.format;
+      const p = canvasPointFromEvent(e);
+      const c = state.clips.find(cl=>cl.id===state.dragId);
+      if (!c) return;
+      const dx = p.x - w/2, dy = p.y - h/2;
+      c.angle = Math.atan2(dy,dx);
+      c.radiusEnd = Math.min(0.48, Math.max(0.06, Math.hypot(dx,dy)/Math.min(w,h)));
+      c.userPositioned = true;
+      drawPositionEditor();
+    });
+    const release = ()=>{ if (state.dragId){ state.dragId = null; drawPositionEditor(); } };
+    canvas.addEventListener('pointerup', release);
+    canvas.addEventListener('pointercancel', release);
+  }
+
+  // ---------------- Playback ----------------
+  function tick(now){
+    const elapsed = now - state.startTime;
+    if (elapsed >= state.totalDur){
+      render(state.totalDur - 16);
+      stopPlayback(true);
+      return;
+    }
+    render(elapsed);
+    const pct = Math.min(100, (elapsed/state.totalDur)*100);
+    el('progressFill').style.width = pct+'%';
+    el('timeLabel').textContent = `${fmtTime(elapsed/1000)} / ${fmtTime(state.totalDur/1000)}`;
+    state.rafId = requestAnimationFrame(tick);
+  }
+
+  function startPlayback(){
+    if (state.clips.length === 0) return;
+    computeTotalDur();
+    state.playing = true;
+    state.startTime = performance.now();
+    el('playBtn').textContent = STR[persisted.lang].pause;
+    if (state.audioEl && state.audioUrl){
+      state.audioEl.currentTime = 0;
+      const p = state.audioEl.play();
+      if (p && p.catch) p.catch(()=>{ /* autoplay blocked; user gesture from Play click should normally allow this */ });
+    }
+    state.rafId = requestAnimationFrame(tick);
+  }
+  function stopPlayback(finished){
+    state.playing = false;
+    el('playBtn').textContent = STR[persisted.lang].play;
+    if (state.rafId) cancelAnimationFrame(state.rafId);
+    if (state.audioEl) state.audioEl.pause();
+    if (finished) el('progressFill').style.width = '100%';
+  }
+
+  // ---------------- Recording ----------------
+  // Prefer a mimeType the browser can encode to MP4/H.264 NATIVELY (no internet, no wasm).
+  // Only fall back to WEBM (VP9/VP8) if the browser truly can't do MP4 in MediaRecorder.
+  function pickRecorderMimeType(){
+    const mp4Candidates = [
+      'video/mp4;codecs=avc1.640028,mp4a.40.2',
+      'video/mp4;codecs=avc1,mp4a.40.2',
+      'video/mp4;codecs=h264,aac',
+      'video/mp4'
+    ];
+    for (const m of mp4Candidates){
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return { mimeType:m, isMp4:true };
+    }
+    const webmCandidates = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    for (const m of webmCandidates){
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return { mimeType:m, isMp4:false };
+    }
+    return { mimeType:'video/webm', isMp4:false };
+  }
+
+  async function doRecord(){
+    if (state.clips.length === 0) return;
+    const t = STR[persisted.lang];
+    el('recordBtn').disabled = true; el('downloadBtn').disabled = true; el('downloadWebmBtn').disabled = true;
+    el('downloadWebmBtn').style.display = 'none';
+    el('recStatus').innerHTML = `<span class="rec-dot"></span> ${t.recBusy}`;
+
+    const stream = canvas.captureStream(30);
+    let mixedStream = stream;
+    try{
+      if (state.audioEl && state.audioUrl){
+        if (!state.audioCtx) state.audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+        if (!state.audioSourceNode){
+          state.audioSourceNode = state.audioCtx.createMediaElementSource(state.audioEl);
+          state.audioDestNode = state.audioCtx.createMediaStreamDestination();
+          state.audioSourceNode.connect(state.audioDestNode);
+          state.audioSourceNode.connect(state.audioCtx.destination);
+        }
+        mixedStream = new MediaStream([...stream.getVideoTracks(), ...state.audioDestNode.stream.getAudioTracks()]);
+      }
+    }catch(err){ /* fall back to video-only */ }
+
+    const { mimeType, isMp4 } = pickRecorderMimeType();
+    state.recordedMimeType = mimeType;
+    state.recordedIsMp4 = isMp4;
+    state.recordedChunks = [];
+    const recorder = new MediaRecorder(mixedStream, {mimeType});
+    recorder.ondataavailable = e=>{ if (e.data.size>0) state.recordedChunks.push(e.data); };
+    recorder.onstop = ()=>{
+      const blobType = isMp4 ? 'video/mp4' : 'video/webm';
+      const blob = new Blob(state.recordedChunks, {type:blobType});
+      if (state.recordedBlobUrl) URL.revokeObjectURL(state.recordedBlobUrl);
+      state.recordedBlobUrl = URL.createObjectURL(blob);
+      el('recordBtn').disabled = false;
+      el('downloadBtn').disabled = false;
+      el('downloadBtn').textContent = isMp4 ? t.download : t.download + ' *';
+      if (!isMp4){
+        el('downloadWebmBtn').style.display = 'block';
+        el('downloadWebmBtn').disabled = false;
+      }
+      const sizeMb = (blob.size/1024/1024).toFixed(2);
+      el('recStatus').innerHTML = isMp4 ? t.recDoneNative(sizeMb) : t.recDoneFallback(sizeMb);
+    };
+    recorder.start();
+    startPlayback();
+    const checkDone = setInterval(()=>{
+      if (!state.playing){ clearInterval(checkDone); setTimeout(()=>recorder.stop(),150); }
+    }, 100);
+  }
+
+  function triggerDownload(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }
+
+  // Always-available, fully offline fallback: just save the raw recording (WEBM plays in
+  // VLC, Discord, WhatsApp, browsers, etc. — no conversion, no internet required at all).
+  async function downloadWebmDirect(){
+    if (!state.recordedBlobUrl) return;
+    const t = STR[persisted.lang];
+    const blob = await (await fetch(state.recordedBlobUrl)).blob();
+    triggerDownload(blob, 'mi_intro.webm');
+    el('recStatus').textContent = t.webmReady;
+  }
+
+  // ---------------- MP4 export ----------------
+  // If the recording is already MP4 (native MediaRecorder support), just save it directly —
+  // zero network calls, works fully offline. Only when the browser couldn't record MP4 do we
+  // fall back to an in-browser ffmpeg.wasm conversion, which needs internet ONCE (to fetch the
+  // wasm engine) and tries multiple CDNs with a timeout so it never hangs forever.
+  let ffmpegPromise = null;
+  function loadScriptTag(src, timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const s = document.createElement('script');
+      let done = false;
+      const timer = setTimeout(()=>{ if(!done){ done=true; s.remove(); reject(new Error('timeout: '+src)); } }, timeoutMs);
+      s.src = src;
+      s.onload = ()=>{ if(!done){ done=true; clearTimeout(timer); resolve(); } };
+      s.onerror = ()=>{ if(!done){ done=true; clearTimeout(timer); s.remove(); reject(new Error('load error: '+src)); } };
+      document.head.appendChild(s);
+    });
+  }
+  const FFMPEG_MIRRORS = [
+    { js: 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js', core: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js' },
+    { js: 'https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js', core: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js' },
+  ];
+  async function ensureFFmpeg(){
+    if (ffmpegPromise) return ffmpegPromise;
+    ffmpegPromise = (async ()=>{
+      let lastErr = null;
+      for (const mirror of FFMPEG_MIRRORS){
+        try{
+          if (!window.FFmpeg) await loadScriptTag(mirror.js, 12000);
+          const { createFFmpeg, fetchFile } = window.FFmpeg;
+          const ff = createFFmpeg({ log: false, corePath: mirror.core });
+          await Promise.race([
+            ff.load(),
+            new Promise((_,rej)=>setTimeout(()=>rej(new Error('ffmpeg core timeout')), 25000))
+          ]);
+          return { ff, fetchFile };
+        }catch(err){ lastErr = err; window.FFmpeg = undefined; }
+      }
+      throw lastErr || new Error('ffmpeg unavailable');
+    })();
+    ffmpegPromise.catch(()=>{ ffmpegPromise = null; }); // allow retry on next click
+    return ffmpegPromise;
+  }
+
+  async function downloadAsMp4(){
+    if (!state.recordedBlobUrl) return;
+    const t = STR[persisted.lang];
+
+    // Fast path: already recorded as real MP4 — save it straight away, no internet needed.
+    if (state.recordedIsMp4){
+      const blob = await (await fetch(state.recordedBlobUrl)).blob();
+      triggerDownload(blob, 'mi_intro.mp4');
+      el('recStatus').textContent = t.mp4Ready;
+      return;
+    }
+
+    // Slow path: browser could only record WEBM, so convert via ffmpeg.wasm (needs internet once).
+    el('downloadBtn').disabled = true; el('recordBtn').disabled = true; el('downloadWebmBtn').disabled = true;
+    el('recStatus').innerHTML = `<span class="rec-dot"></span> ${t.converting}`;
+    try{
+      const webmBlob = await (await fetch(state.recordedBlobUrl)).blob();
+      const { ff, fetchFile } = await ensureFFmpeg();
+      if (ff.FS.readdir('/').includes('input.webm')) ff.FS.unlink('input.webm');
+      ff.FS.writeFile('input.webm', await fetchFile(webmBlob));
+
+      const hasAudio = !!(state.audioEl && state.audioUrl);
+      const args = ['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p'];
+      if (hasAudio) args.push('-c:a', 'aac', '-b:a', '160k'); else args.push('-an');
+      args.push('-movflags', '+faststart', 'output.mp4');
+      await ff.run(...args);
+
+      const data = ff.FS.readFile('output.mp4');
+      triggerDownload(new Blob([data.buffer], {type:'video/mp4'}), 'mi_intro.mp4');
+      el('recStatus').textContent = t.mp4Ready;
+    }catch(err){
+      console.error(err);
+      el('recStatus').textContent = t.mp4Error;
+    }finally{
+      el('downloadBtn').disabled = false; el('recordBtn').disabled = false; el('downloadWebmBtn').disabled = false;
+    }
+  }
+
+  build();
+})();
+</script>
